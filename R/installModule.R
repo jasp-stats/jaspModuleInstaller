@@ -25,11 +25,18 @@ createLocalRecord <- function(modulePkg, moduleInfo, cacheAble = TRUE, addJaspTo
   record
 }
 
-updateLockFileWithLocalJaspModules <- function(pathToLockfile) {
+updateLockFileWithLocalJaspModules <- function(pathToLockfile, pathToModule) {
 
+  print(pathToLockfile)
+  print(pathToModule)
   lockfile <- renv::lockfile_read(pathToLockfile)
-  pathToThisModule <- dirname(normalizePath(pathToLockfile))
-  modulePaths <- c("../../Engine/jaspGraphs", pathToThisModule)
+
+  engineRoot <- normalizePath(file.path(pathToModule, "..", "..", "Engine"))
+  modulePaths <- c(
+    file.path(engineRoot, "jaspGraphs"),
+    file.path(engineRoot, "jaspBase"),
+    pathToModule
+  )
   records <- vector("list", length(modulePaths))
   for (i in seq_along(modulePaths)) {
 
@@ -60,7 +67,7 @@ getInstallMode <- function() {
 }
 
 #' @export
-installJaspModule <- function(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg, force = FALSE, frameworkLibrary = NULL) {
+installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force = FALSE, frameworkLibrary = NULL) {
 
   validateCompilationAbilities()
 
@@ -87,9 +94,9 @@ installJaspModule <- function(modulePkg, libPathsToUse, moduleLibrary, repos, on
     identity
   }
 
-  result <- tryCatch({
+  tryCatch({
     maybeBuildTools({
-      installJaspModuleFromRenv(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg)
+      installJaspModuleFromRenv(modulePkg, moduleLibrary, repos, onlyModPkg)
       # if (hasRenvLockFile(modulePkg)) installJaspModuleFromRenv(       modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg)
       # else                            installJaspModuleFromDescription(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg, frameworkLibrary = frameworkLibrary)
     },
@@ -102,40 +109,39 @@ installJaspModule <- function(modulePkg, libPathsToUse, moduleLibrary, repos, on
     }
   })
 
-  return(result)
+  return(invisible(TRUE))
 }
 
 
-installJaspModuleFromRenv <- function(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg) {
+installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
 
-  print(sprintf("Installing module with renv. installJaspModuleFromRenv('%s', c(%s), '%s', '%s', %s)",
-                modulePkg, paste0("'", libPathsToUse, "'", collapse = ", "), moduleLibrary, repos, onlyModPkg))
+  print(sprintf("Installing module with renv. installJaspModuleFromRenv('%s', '%s', '%s', %s)",
+                modulePkg, moduleLibrary, repos, onlyModPkg))
 
   setupRenv(moduleLibrary, modulePkg)
   installMode <- getInstallMode()
 
   clean <- cleanModuleLibrary()
-  moduleName <- getModuleName()
+  moduleName <- getModuleName(modulePkg)
 
-  lockfilePath <- "renv.lock"
+  lockfilePath <- getRenvLockFile(modulePkg)
   jaspLockfilePath <- tempfile(fileext = "jasp_renv.lock")
 
-  file.copy(lockfilePath, jaspLockfilePath, overwrite = TRUE)
+  file.copy(from = lockfilePath, to = jaspLockfilePath, overwrite = TRUE)
 
-  updatedLockfile <- updateLockFileWithLocalJaspModules(jaspLockfilePath)
+  updatedLockfile <- updateLockFileWithLocalJaspModules(jaspLockfilePath, modulePkg)
   renv::lockfile_write(updatedLockfile, file = jaspLockfilePath)
-  renv::restore(lockfile = "jasp_updated_renv.lock", clean = clean)
 
   if (installMode == "identicalToLockfile") {
 
     # install remote versions of jasp module dependencies but local version of the module
-    renv::restore(lockfile = "renv.lock",               exclude = moduleName, clean = clean, library = moduleLibrary)
-    renv::restore(lockfile = "jasp_updated_renv.lock", packages = moduleName, clean = clean, library = moduleLibrary)
+    renv::restore(lockfile = lockfilePath,      exclude = moduleName, clean = clean, library = moduleLibrary)
+    renv::restore(lockfile = jaspLockfilePath, packages = moduleName, clean = clean, library = moduleLibrary)
 
-  } else if ("localJaspPackages") {
+  } else if (installMode == "localJaspPackages") {
 
     # install local versions of jasp module and jasp module dependencies
-    renv::restore(lockfile = "jasp_updated_renv.lock", clean = clean, library = moduleLibrary)
+    renv::restore(lockfile = jaspLockfilePath, clean = clean, library = moduleLibrary)
 
   }
 

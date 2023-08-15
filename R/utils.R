@@ -38,6 +38,7 @@ assertValidJASPmodule <- function(modulePkg) {
 
 getFileFromModule <- function(modulePkg, filename) {
 
+  cat(sprintf("getFileFromModule('%s', '%s')\n", modulePkg, filename))
   hereItGoes <- file.path(modulePkg, filename)
 
   if (isModulePkgArchive(modulePkg)) {
@@ -72,8 +73,12 @@ getModuleName <- function(modulePkg) {
   getModuleInfo(modulePkg)[["Package"]]
 }
 
+getRenvLockFile <- function(modulePkg) {
+  return(file.path(modulePkg, "renv.lock"))
+}
+
 hasRenvLockFile <- function(modulePkg) {
-  return(file.exists(file.path(modulePkg, "renv.lock")))
+  return(file.exists(getRenvLockFile(modulePkg)))
 }
 
 validateCompilationAbilities <- function() {
