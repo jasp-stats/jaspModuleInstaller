@@ -1,18 +1,3 @@
-getOS <- function() {
-  os <- NULL
-  if (!is.null(Sys.info())) {
-    os <- Sys.info()["sysname"]
-    if (os == "Darwin")
-      os <- "osx"
-  } else {
-    if (grepl("^darwin", R.version$os))
-      os <- "osx"
-    if (grepl("linux-gnu", R.version$os))
-      os <- "linux"
-  }
-  return(tolower(os))
-}
-
 isModulePkgArchive <- function(modulePkg) {
   return(any(endsWith(modulePkg, c(".tar.gz", ".zip", ".tgz"))))
 }
@@ -38,7 +23,6 @@ assertValidJASPmodule <- function(modulePkg) {
 
 getFileFromModule <- function(modulePkg, filename) {
 
-  cat(sprintf("getFileFromModule('%s', '%s')\n", modulePkg, filename))
   hereItGoes <- file.path(modulePkg, filename)
 
   if (isModulePkgArchive(modulePkg)) {

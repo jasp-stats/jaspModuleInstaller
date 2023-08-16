@@ -1,10 +1,3 @@
-assignFunctionInPackage <- function(fun, name, package) {
-  ns <- getNamespace(package)
-  unlockBinding(name, ns)
-  assign(name, fun, ns)
-  lockBinding(name, ns)
-}
-
 addLocalJaspToVersion <- function(version) {
   suffix <- "_Local_JASP"
   if (!endsWith(x = version, suffix = suffix))
@@ -56,12 +49,6 @@ cleanModuleLibrary <- function() {
   identical(toupper(Sys.getenv("JASP_CLEAN_MODULE_LIBRARY", unset = "TRUE")), "TRUE")
 }
 
-isJaspModule <- function(path) {
-  path <- normalizePath(path)
-  startsWith(prefix = "jasp", x = basename(path)) &&
-    grepl("jasp-desktop/[Engine|Modules]", path)
-}
-
 getInstallMode <- function() {
   return("localJaspPackages")
 }
@@ -89,7 +76,7 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
   # }
 
   maybeBuildTools <- if (require("pkgbuild", quietly = TRUE)) {
-    getFromNamespace("with_build_tools", "pkgbuild")
+    function(x) getFromNamespace("with_build_tools", "pkgbuild")(x, required = FALSE)
   } else {
     identity
   }
@@ -99,8 +86,7 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
       installJaspModuleFromRenv(modulePkg, moduleLibrary, repos, onlyModPkg)
       # if (hasRenvLockFile(modulePkg)) installJaspModuleFromRenv(       modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg)
       # else                            installJaspModuleFromDescription(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg, frameworkLibrary = frameworkLibrary)
-    },
-    required = FALSE)
+    })
   }, error = function(e) {
     if (is.null(e[["output"]])) {
       stop(e, domain = NA)
@@ -111,7 +97,6 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
 
   return(invisible(TRUE))
 }
-
 
 installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
 
@@ -125,6 +110,11 @@ installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPk
   moduleName <- getModuleName(modulePkg)
 
   lockfilePath <- getRenvLockFile(modulePkg)
+
+  lockfileExists <- file.exists(lockfilePath)
+  if (!lockfileExists)
+    generateBasicLockfile(lockfilePath, modulePkg)
+
   jaspLockfilePath <- tempfile(fileext = "jasp_renv.lock")
 
   file.copy(from = lockfilePath, to = jaspLockfilePath, overwrite = TRUE)
@@ -145,5 +135,27 @@ installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPk
 
   }
 
+  # TODO: do not update jasp modules?
+  if (!lockfileExists)
+    renv::snapshot(lockfile = lockfilePath)
+
 }
 
+generateBasicLockfile <- function(lockfilePath, modulePkg) {
+
+  warning("Creating a basic lockfile for this JASP module. ",
+          "It will be automatically added to the module, but please manage this yourself and review its contents.", domain = NA)
+
+  deps <- renv::dependencies(path = file.path(modulePkg, "DESCRIPTION"))
+  pkgs <- unique(deps$Package)
+  lst <- tools::package_dependencies(pkgs, recursive = TRUE)
+  # does _not_ include GitHub dependencies
+  mostPkgs <- sort(Reduce(union, lst))
+
+  lf <- renv::lockfile_create(project = modulePkg)
+  lf$Packages <- list()
+
+  renv::lockfile_write(lf, lockfilePath)
+  renv::record(mostPkgs, lockfile = lockfilePath)
+
+}

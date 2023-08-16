@@ -1,3 +1,35 @@
+# NOTE: this file must be self contained!
+# It is (once) sourced independently so it cannot refer to any functions outside of this file.
+
+assignFunctionInPackage <- function(fun, name, package) {
+  ns <- getNamespace(package)
+  unlockBinding(name, ns)
+  assign(name, fun, ns)
+  lockBinding(name, ns)
+}
+
+isJaspModule <- function(path) {
+  path <- normalizePath(path)
+  nm <- basename(path)
+  !identical(nm, "jaspModuleInstaller") &&
+    startsWith(prefix = "jasp", x = nm) &&
+    any(
+      # installed package
+      dir.exists(file.path(path, "qml")),
+      # source package
+      dir.exists(file.path(path, "inst", "qml"))
+    )
+  # original check that fails for installed locations
+  # grepl("jasp-desktop/[Engine|Modules]", path)
+}
+
+isJaspSourcePackage <- function(path) {
+  path <- normalizePath(path)
+  nm <- basename(path)
+  !identical(nm, "jaspModuleInstaller") &&
+    startsWith(prefix = "jasp", x = nm) &&
+    grepl("jasp-desktop/[Engine|Modules]", path)
+}
 
 renv_remotes_resolve_path_impl_override <- function(path) {
   desc <- renv:::renv_description_read(path)
@@ -7,12 +39,9 @@ renv_remotes_resolve_path_impl_override <- function(path) {
   if (isJaspModule(path)) {
     cat(sprintf("renv_remotes_resolve_path_impl_override, path = %s\n", path))
     Cacheable <- TRUE
-    # print("Version")
-    # print(desc$Version)
 
     Version <- addLocalJaspToVersion(desc$Version)
-    # Version <- desc$Version
-    # print(Version)
+
   } else {
     Cacheable <- FALSE
     Version <- desc$Version
@@ -55,7 +84,8 @@ renv_description_read_override <- function(path = NULL, package = NULL, subdir =
     cat(sprintf("renv_description_read_override, path = %s\n", path))
 
     # version should only be adjusted when this is NOT called from snapshot
-    modify <- !isCalledFromRenvSnapshot()
+    # why though?
+    modify <- TRUE#!isCalledFromRenvSnapshot()
     cat(sprintf("renv_description_read_override, modify = %s\n", modify))
     if (modify)
       description[["Version"]] <- addLocalJaspToVersion(description[["Version"]])
