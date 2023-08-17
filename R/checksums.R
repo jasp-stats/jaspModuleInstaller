@@ -34,7 +34,6 @@ readMd5Sums <- function(modulePkg, moduleLibrary) {
   readRDS(file = makeMd5SumsFilename(modulePkg, moduleLibrary))
 }
 
-
 #' @rdname checksums
 md5SumsChanged <- function(modulePkg, moduleLibrary) {
 
@@ -46,5 +45,45 @@ md5SumsChanged <- function(modulePkg, moduleLibrary) {
   newMd5Sums <- createMd5Sums(modulePkg)
 
   return(!identical(oldMd5Sums, newMd5Sums))
+
+}
+
+computeModuleHash <- function(modulePkg) {
+
+  md5Sums <- createMd5Sums(modulePkg)
+  hashRstring(unname(md5Sums))
+
+}
+
+hashRstring <- function(contents) {
+
+  # the code and comments below are based on renv:::renv_hash_description_impl
+  # AFAIK it the hash is not reproducible acros unix <-> windows.
+  # rlang::hash would be reproducible, but that adds a dependency.
+
+  # concatenate hashes to single string
+  contents <- paste(contents, collapse = "")
+
+  tempfile <- tempfile("jaspModuleInstaller-hash-")
+
+  # create the file connection (use binary so that unix newlines are used across platforms, for more stable hashing)
+  con <- file(tempfile, open = "wb")
+
+  # write to the file
+  writeLines(enc2utf8(contents), con = con, useBytes = TRUE)
+
+  # flush to ensure we've written to file
+  flush(con)
+
+  # close the connection and remove the file
+  close(con)
+
+  # ready for hashing
+  hash <- unname(tools::md5sum(tempfile))
+
+  # remove the old file
+  unlink(tempfile)
+
+  return(hash)
 
 }

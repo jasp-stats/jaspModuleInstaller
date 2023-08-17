@@ -12,17 +12,18 @@ createLocalRecord <- function(modulePkg, moduleInfo, cacheAble = TRUE, addJaspTo
     Source     = "Local",
     RemoteType = "local",
     RemoteUrl  = modulePkg,
-    Cacheable  = cacheAble
+    Cacheable  = cacheAble,
+    Hash       = computeModuleHash(modulePkg)
   ))
   names(record) <- moduleInfo[["Package"]]
   record
 }
 
-updateLockFileWithLocalJaspModules <- function(pathToLockfile, pathToModule) {
+updateLockFileWithLocalJaspModules <- function(lockfile, pathToModule) {
 
-  print(pathToLockfile)
-  print(pathToModule)
-  lockfile <- renv::lockfile_read(pathToLockfile)
+  # print(pathToLockfile)
+  # print(pathToModule)
+  # lockfile <- renv::lockfile_read(pathToLockfile)
 
   engineRoot <- normalizePath(file.path(pathToModule, "..", "..", "Engine"))
   modulePaths <- c(
@@ -83,7 +84,7 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
 
   tryCatch({
     maybeBuildTools({
-      installJaspModuleFromRenv(modulePkg, moduleLibrary, repos, onlyModPkg)
+      installJaspModuleImpl(modulePkg, moduleLibrary, repos, onlyModPkg)
       # if (hasRenvLockFile(modulePkg)) installJaspModuleFromRenv(       modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg)
       # else                            installJaspModuleFromDescription(modulePkg, libPathsToUse, moduleLibrary, repos, onlyModPkg, frameworkLibrary = frameworkLibrary)
     })
@@ -98,12 +99,15 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
   return(invisible(TRUE))
 }
 
-installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
+installJaspModuleImpl <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
 
-  print(sprintf("Installing module with renv. installJaspModuleFromRenv('%s', '%s', '%s', %s)",
-                modulePkg, moduleLibrary, repos, onlyModPkg))
+  cat(sprintf(
+    "Installing module with renv.\ninstallJaspModuleImpl('%s', '%s', '%s', %s)\n",
+    modulePkg, moduleLibrary, repos, onlyModPkg
+  ))
 
   setupRenv(moduleLibrary, modulePkg)
+  loadModuleStatusObject()
   installMode <- getInstallMode()
 
   clean <- cleanModuleLibrary()
@@ -115,29 +119,32 @@ installJaspModuleFromRenv <- function(modulePkg, moduleLibrary, repos, onlyModPk
   if (!lockfileExists)
     generateBasicLockfile(lockfilePath, modulePkg)
 
-  jaspLockfilePath <- tempfile(fileext = "jasp_renv.lock")
+  # jaspLockfilePath <- tempfile(fileext = "jasp_renv.lock")
 
-  file.copy(from = lockfilePath, to = jaspLockfilePath, overwrite = TRUE)
+  # file.copy(from = lockfilePath, to = jaspLockfilePath, overwrite = TRUE)
 
-  updatedLockfile <- updateLockFileWithLocalJaspModules(jaspLockfilePath, modulePkg)
-  renv::lockfile_write(updatedLockfile, file = jaspLockfilePath)
+  lockfile <- renv::lockfile_read(lockfilePath)
+  updatedLockfile <- updateLockFileWithLocalJaspModules(lockfile, modulePkg)
+  # renv::lockfile_write(updatedLockfile, file = jaspLockfilePath)
 
   if (installMode == "identicalToLockfile") {
 
     # install remote versions of jasp module dependencies but local version of the module
     renv::restore(lockfile = lockfilePath,      exclude = moduleName, clean = clean, library = moduleLibrary)
-    renv::restore(lockfile = jaspLockfilePath, packages = moduleName, clean = clean, library = moduleLibrary)
+    # renv::restore(lockfile = jaspLockfilePath, packages = moduleName, clean = clean, library = moduleLibrary)
+    renv::restore(lockfile = updatedLockfile,  packages = moduleName, clean = clean, library = moduleLibrary)
 
   } else if (installMode == "localJaspPackages") {
 
     # install local versions of jasp module and jasp module dependencies
-    renv::restore(lockfile = jaspLockfilePath, clean = clean, library = moduleLibrary)
+    # newLockfile <- renv::restore(lockfile = jaspLockfilePath, clean = clean, library = moduleLibrary)
+    newLockfile <- renv::restore(lockfile = updatedLockfile,  clean = clean, library = moduleLibrary)
 
   }
 
-  # TODO: do not update jasp modules?
+  # TODO: this should not update jasp modules?
   if (!lockfileExists)
-    renv::snapshot(lockfile = lockfilePath)
+    renv::lockfile_write(newLockfile, lockfilePath)
 
 }
 

@@ -78,3 +78,27 @@ validateCompilationAbilities <- function() {
   The output was:
   ", paste0(cmdConfigCC, collapse = "\n"), domain = NA)
 }
+
+getflag <- function(envVar, default) {
+  identical(toupper(Sys.getenv(envVar, unset = default)), "TRUE")
+}
+
+isVerbose <- function() {
+  getflag("JASP_VERBOSE_JASPMODULEINSTALLER", TRUE)
+}
+
+devCatFile <- function(file) {
+  return(Sys.getenv("JASP_JASPMODULEINSTALLER_LOG_REDIRECT", unset = ""))
+}
+
+devcat <- function(..., file = "", sep = " ", fill = FALSE, labels = NULL, append = FALSE) {
+
+  if (!isVerbose())
+    return()
+
+  if (identical(file, "")) # identical since stdout() and stderr() are also valid
+    file <- devCatFile(file)
+
+  cat(..., file = file, sep = sep, fill = fill, labels = labels, append = append)
+}
+

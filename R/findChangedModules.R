@@ -1,8 +1,8 @@
-computeModuleStatus <- function(jaspRoot) {
+computeModuleStatusObject <- function(jaspRoot) {
 
   jaspModules <- Filter(
     function(p) isJaspSourcePackage(p),
-    list.dirs(file.path(jaspRoot, "Modules"),, recursive = FALSE)
+    list.dirs(file.path(jaspRoot, "Modules"), recursive = FALSE)
   )
 
   jaspPackages <- Filter(
@@ -11,20 +11,65 @@ computeModuleStatus <- function(jaspRoot) {
   )
 
   allPkgs <- c(jaspModules, jaspPackages)
-  md5sums <- lapply(c(jaspModules, jaspPackages), createMd5Sums)
+  md5sums <- vapply(allPkgs, computeModuleHash, character(1L))
   names(md5sums) <- basename(allPkgs)
 
+  # TODO: this whole setup needs to be redone to accomodate the new idea with renv_lockfile_diff_record_override
   dependencies <- getJaspDependencies(jaspModules)
-
-  installedPath <- path.package("jaspModuleInstaller", quiet = FALSE)
-  objectPath <- file.path(installedPath, "moduleMd5sums.rds")
 
   # TODO: needs to know the module build directory!
   needsReinstallation <- character()
 
-  cat(sprintf("writing the module dependency graph, md5sums, and which modules need reinstallation to: %s\n", objectPath))
+  return(list(
+    jaspPackageNames    = basename(allPkgs),
+    dependencies        = dependencies,
+    md5sums             = md5sums,
+    needsReinstallation = needsReinstallation
+  ))
 
-  saveRDS(list(dependencies = dependencies, md5sums = md5sums, needsReinstallation = needsReinstallation), file = objectPath)
+}
+
+#' Write Status Object of JASP Modules
+#'
+#' @param jaspRoot the root of the jasp-desktop github repository
+#'
+#' @export
+#'
+#' @examples
+writeModuleStatusObject <- function(jaspRoot) {
+
+  # TODO: validate jaspRoot
+
+  moduleStatusObject     <- computeModuleStatusObject(jaspRoot)
+  moduleStatusObjectPath <- getModuleStatusObjectPath()
+
+  devcat(sprintf("writing module status to: %s\n", moduleStatusObjectPath))
+
+  saveRDS(moduleStatusObject, file = moduleStatusObjectPath)
+
+}
+
+loadModuleStatusObject <- function() {
+
+  moduleStatusObjectPath <- getModuleStatusObjectPath()
+
+  if (file.exists(moduleStatusObjectPath)) {
+
+    moduleStatusObject <- readRDS(file = moduleStatusObjectPath)
+    options("jaspModuleInstallerModuleStatusObject" = moduleStatusObject)
+
+  } else {
+
+    warning(sprintf("Attempting to load the moduleStatusObject at %s but it does not exists.", moduleStatusObjectPath), domain = NA)
+
+  }
+
+}
+
+getModuleStatusObjectPath <- function() {
+
+  installedPath <- find.package(package = "jaspModuleInstaller", quiet = FALSE)
+  moduleStatusObjectPath <- file.path(installedPath, "moduleStatusObject.rds")
 
 }
 

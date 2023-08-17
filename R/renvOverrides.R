@@ -1,5 +1,40 @@
 # NOTE: this file must be self contained!
 # It is (once) sourced independently so it cannot refer to any functions outside of this file.
+# as a consequence, this file is a tad long
+
+# TODO: this needs another override so that the hash in the cache is the same as the hash in the lockfile!
+
+#' Determine the operating system
+#'
+#' @return Either, "windows", "osx", or "linux".
+#' @export
+getOS <- function() {
+
+  os <- NULL
+
+  if (!is.null(Sys.info())) {
+
+    os <- Sys.info()["sysname"]
+
+    if (os == "Darwin")
+      os <- "osx"
+
+  } else {
+
+    if (grepl("^darwin", R.version$os))
+      os <- "osx"
+
+    if (grepl("linux-gnu", R.version$os))
+      os <- "linux"
+
+  }
+
+  if (is.null(os))
+    stop("Unable to determine the operating system because `Sys.info()` returned NULL.", domain = NA)
+
+  return(tolower(os))
+
+}
 
 assignFunctionInPackage <- function(fun, name, package) {
   ns <- getNamespace(package)
@@ -37,7 +72,7 @@ renv_remotes_resolve_path_impl_override <- function(path) {
   # start of changes
   print(path)
   if (isJaspModule(path)) {
-    cat(sprintf("renv_remotes_resolve_path_impl_override, path = %s\n", path))
+    # cat(sprintf("renv_remotes_resolve_path_impl_override, path = %s\n", path))
     Cacheable <- TRUE
 
     Version <- addLocalJaspToVersion(desc$Version)
@@ -81,18 +116,52 @@ renv_description_read_override <- function(path = NULL, package = NULL, subdir =
                                    path = path, callback = renv:::renv_description_read_impl, subdir = subdir,
                                    ...)
   if (isJaspModule(dirname(path))) {
-    cat(sprintf("renv_description_read_override, path = %s\n", path))
+    # cat(sprintf("renv_description_read_override, path = %s\n", path))
 
     # version should only be adjusted when this is NOT called from snapshot
     # why though?
     modify <- TRUE#!isCalledFromRenvSnapshot()
-    cat(sprintf("renv_description_read_override, modify = %s\n", modify))
+    # cat(sprintf("renv_description_read_override, modify = %s\n", modify))
     if (modify)
       description[["Version"]] <- addLocalJaspToVersion(description[["Version"]])
   }
   if (!is.null(field))
     return(description[[field]])
   description
+}
+
+renv_lockfile_diff_record_override <- function(before, after) {
+
+  before <- renv:::renv_record_normalize(before)
+  after  <- renv:::renv_record_normalize(after)
+
+  # this is not 100% necessary, but I'm not sure if there is a better and easier way to determine
+  # whether a package is a JASP module (other than startsWith(x, "JASP"), which is a bit unsafe)
+  jaspPackages <- getOption("jaspModuleInstallerModuleStatusObject")[["jaspPackageNames"]]
+
+  # first, compare on version / record existence
+  type <- renv:::case(
+    is.null(before) ~ "install",
+    is.null(after)  ~ "remove",
+    before$Version < after$Version ~ "upgrade",
+    before$Version > after$Version ~ "downgrade",
+    before$Package %in% jaspPackages && before$Hash != after$Hash  ~ "JASP: source code changed"
+  )
+
+  if (!is.null(type))
+    return(type)
+
+  # check for a crossgrade -- where the package version is the same,
+  # but details about the package's remotes have changed
+  if (!setequal(renv:::renv_record_names(before), renv:::renv_record_names(after)))
+    return("crossgrade")
+
+  nm <- union(renv:::renv_record_names(before), renv:::renv_record_names(after))
+  if (!identical(before[nm], after[nm]))
+    return("crossgrade")
+
+  NULL
+
 }
 
 hackRenv <- function() {
@@ -105,7 +174,8 @@ hackRenv <- function() {
   )
 
   assignFunctionInPackage(renv_remotes_resolve_path_impl_override, "renv_remotes_resolve_path_impl", "renv")
-  assignFunctionInPackage(renv_description_read_override, "renv_description_read", "renv")
+  assignFunctionInPackage(renv_description_read_override,          "renv_description_read",          "renv")
+  assignFunctionInPackage(renv_lockfile_diff_record_override,      "renv_lockfile_diff_record",      "renv")
 }
 
 postInstallFixes <- function(folderToFix) {
