@@ -2,8 +2,6 @@
 # It is (once) sourced independently so it cannot refer to any functions outside of this file.
 # as a consequence, this file is a tad long
 
-# TODO: this needs another override so that the hash in the cache is the same as the hash in the lockfile!
-
 #' Determine the operating system
 #'
 #' @return Either, "windows", "osx", or "linux".
@@ -43,6 +41,10 @@ assignFunctionInPackage <- function(fun, name, package) {
   lockBinding(name, ns)
 }
 
+assignFunctionInRenv <- function(fun, name) {
+  assignFunctionInPackage(fun, name, "renv")
+}
+
 isJaspModule <- function(path) {
   path <- normalizePath(path)
   nm <- basename(path)
@@ -66,23 +68,32 @@ isJaspSourcePackage <- function(path) {
     grepl("jasp-desktop/[Engine|Modules]", path)
 }
 
+addLocalJaspToVersion <- function(version) {
+  suffix <- "_Local_JASP"
+  if (!endsWith(x = version, suffix = suffix))
+    return(paste0(version, suffix))
+  return(version)
+}
+
 renv_remotes_resolve_path_impl_override <- function(path) {
   desc <- renv:::renv_description_read(path)
 
   # start of changes
-  print(path)
+  # print(path)
   if (isJaspModule(path)) {
     # cat(sprintf("renv_remotes_resolve_path_impl_override, path = %s\n", path))
     Cacheable <- TRUE
-
     Version <- addLocalJaspToVersion(desc$Version)
+    cat(sprintf("computing hash for jasp module at path %s\n", path))
+    Hash    <- computeModuleHash(path)
 
   } else {
     Cacheable <- FALSE
     Version <- desc$Version
+    Hash    <- NULL
   }
   list(Package = desc$Package, Version = Version, Source = "Local",
-       RemoteType = "local", RemoteUrl = path, Cacheable = Cacheable)
+       RemoteType = "local", RemoteUrl = path, Cacheable = Cacheable, Hash = Hash)
   # end of changes
 }
 
@@ -132,6 +143,10 @@ renv_description_read_override <- function(path = NULL, package = NULL, subdir =
 
 renv_lockfile_diff_record_override <- function(before, after) {
 
+  # renv:::renv_record_normalize removes hash information
+  before0 <- before
+  after0  <- after
+
   before <- renv:::renv_record_normalize(before)
   after  <- renv:::renv_record_normalize(after)
 
@@ -145,7 +160,7 @@ renv_lockfile_diff_record_override <- function(before, after) {
     is.null(after)  ~ "remove",
     before$Version < after$Version ~ "upgrade",
     before$Version > after$Version ~ "downgrade",
-    before$Package %in% jaspPackages && before$Hash != after$Hash  ~ "JASP: source code changed"
+    before$Package %in% jaspPackages && before0$Hash != after0$Hash ~ "install (JASP: source code changed)"
   )
 
   if (!is.null(type))
@@ -164,18 +179,43 @@ renv_lockfile_diff_record_override <- function(before, after) {
 
 }
 
+isPathInRenvCache <- function(path) {
+  # TODO: normalizePath(path) is used to follow symlinks, needs to be verified across OSes
+  startsWith(x = normalizePath(path), prefix = normalizePath(renv::paths$cache()))
+}
+
+extractHashFromRenvCachePath <- function(path) {
+  # TODO: normalizePath(path) is used to follow symlinks, needs to be verified across OSes
+  path |> normalizePath() |> dirname() |> basename()
+}
+
+renv_hash_description_override <- function(path) {
+
+  if (isJaspModule(path) && isPathInRenvCache(path)) {
+
+    return(extractHashFromRenvCachePath(path))
+
+  } else {
+
+    renv:::filebacked(
+      context  = "renv_hash_description",
+      path     = path,
+      callback = renv:::renv_hash_description_impl
+    )
+
+  }
+}
+
 hackRenv <- function() {
 
   # renv adds e.g,. "R-3.6/x86_64-pc-linux-gnu" to all paths (R-version/os) and we don't need that
-  assignFunctionInPackage(
-    fun     = function() return(""),
-    name    = "renv_bootstrap_platform_prefix",
-    package = "renv"
-  )
+  assignFunctionInRenv(function() return(""),                   "renv_bootstrap_platform_prefix")
 
-  assignFunctionInPackage(renv_remotes_resolve_path_impl_override, "renv_remotes_resolve_path_impl", "renv")
-  assignFunctionInPackage(renv_description_read_override,          "renv_description_read",          "renv")
-  assignFunctionInPackage(renv_lockfile_diff_record_override,      "renv_lockfile_diff_record",      "renv")
+  assignFunctionInRenv(renv_remotes_resolve_path_impl_override, "renv_remotes_resolve_path_impl")
+  assignFunctionInRenv(renv_description_read_override,          "renv_description_read")
+  assignFunctionInRenv(renv_lockfile_diff_record_override,      "renv_lockfile_diff_record")
+  assignFunctionInRenv(renv_hash_description_override,          "renv_hash_description")
+
 }
 
 postInstallFixes <- function(folderToFix) {

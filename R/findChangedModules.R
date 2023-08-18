@@ -1,3 +1,21 @@
+#' Write Status Object of JASP Modules
+#'
+#' @param jaspRoot the root of the jasp-desktop github repository
+#'
+#' @export
+writeModuleStatusObject <- function(jaspRoot) {
+
+  # TODO: validate jaspRoot
+
+  moduleStatusObject     <- computeModuleStatusObject(jaspRoot)
+  moduleStatusObjectPath <- getModuleStatusObjectPath()
+
+  devcat(sprintf("writing module status to: %s\n", moduleStatusObjectPath))
+
+  saveRDS(moduleStatusObject, file = moduleStatusObjectPath)
+
+}
+
 computeModuleStatusObject <- function(jaspRoot) {
 
   jaspModules <- Filter(
@@ -13,39 +31,24 @@ computeModuleStatusObject <- function(jaspRoot) {
   allPkgs <- c(jaspModules, jaspPackages)
   md5sums <- vapply(allPkgs, computeModuleHash, character(1L))
   names(md5sums) <- basename(allPkgs)
+  names(allPkgs) <- basename(allPkgs) # assumes package name == folder name
 
-  # TODO: this whole setup needs to be redone to accomodate the new idea with renv_lockfile_diff_record_override
   dependencies <- getJaspDependencies(jaspModules)
+  dependenciesAndPaths <- lapply(dependencies, function(pkgs) {
+    allPkgs[pkgs]
+  })
 
-  # TODO: needs to know the module build directory!
+  # TODO: would needs to know the module build directory, could speed up building
   needsReinstallation <- character()
 
+  # this object is not space efficient and uses strings for everything, but hopefully nobody cares.
   return(list(
     jaspPackageNames    = basename(allPkgs),
-    dependencies        = dependencies,
+    dependencies        = dependenciesAndPaths,
+    # these two are unused for now
     md5sums             = md5sums,
     needsReinstallation = needsReinstallation
   ))
-
-}
-
-#' Write Status Object of JASP Modules
-#'
-#' @param jaspRoot the root of the jasp-desktop github repository
-#'
-#' @export
-#'
-#' @examples
-writeModuleStatusObject <- function(jaspRoot) {
-
-  # TODO: validate jaspRoot
-
-  moduleStatusObject     <- computeModuleStatusObject(jaspRoot)
-  moduleStatusObjectPath <- getModuleStatusObjectPath()
-
-  devcat(sprintf("writing module status to: %s\n", moduleStatusObjectPath))
-
-  saveRDS(moduleStatusObject, file = moduleStatusObjectPath)
 
 }
 
@@ -110,7 +113,12 @@ getJaspDependencies <- function(jaspModules) {
 getJaspDependenciesFromDescription <- function(modulePath) {
 
   descriptionPath <- file.path(modulePath, "DESCRIPTION")
-  if (!file.exists(descriptionPath))
+
+  if (!file.exists(descriptionPath)) {
+    warning(sprintf("Trying to find dependencies from DESCRIPTION at path '%s' but it does not exist!", descriptionPath))
     return(NULL)
+  }
+
   Filter(function(x) startsWith(prefix = "jasp", x = x), renv::dependencies(descriptionPath, quiet = TRUE)[, "Package"])
+
 }
