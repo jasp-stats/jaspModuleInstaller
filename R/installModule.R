@@ -94,8 +94,9 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
 installJaspModuleImpl <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
 
   cat(sprintf(
-    "Installing module with renv.\ninstallJaspModuleImpl('%s', '%s', '%s', %s)\n",
-    modulePkg, moduleLibrary, repos, onlyModPkg
+    "Installing module with renv.\ninstallJaspModuleImpl('%s', '%s', '%s', %s)\nwith libPaths:\n%s\n",
+    modulePkg, moduleLibrary, repos, onlyModPkg,
+    paste(.libPaths(), collapse = ", ")
   ))
 
   setupRenv(moduleLibrary, modulePkg)
@@ -113,16 +114,19 @@ installJaspModuleImpl <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
   lockfile <- renv::lockfile_read(lockfilePath)
   updatedLockfile <- updateLockFileWithLocalJaspModules(lockfile, modulePkg)
 
+  libs <- .libPaths()
+  library <- c(moduleLibrary, libs[length(libs)])
+
   if (installMode == "identicalToLockfile") {
 
     # install remote versions of jasp module dependencies but local version of the module
-    renv::restore(lockfile = lockfilePath,     exclude = moduleName, clean = clean, library = moduleLibrary)
-    renv::restore(lockfile = updatedLockfile, packages = moduleName, clean = clean, library = moduleLibrary)
+    renv::restore(lockfile = lockfilePath,     exclude = moduleName, clean = clean, library = library)
+    renv::restore(lockfile = updatedLockfile, packages = moduleName, clean = clean, library = library)
 
   } else if (installMode == "localJaspPackages") {
 
     # install local versions of jasp module and jasp module dependencies
-    records <- renv::restore(lockfile = updatedLockfile,  clean = clean, library = moduleLibrary)
+    records <- renv::restore(lockfile = updatedLockfile,  clean = clean, library = library)
 
   }
 
