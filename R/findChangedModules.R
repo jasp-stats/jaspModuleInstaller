@@ -18,15 +18,15 @@ writeModuleStatusObject <- function(jaspRoot) {
 
 computeModuleStatusObject <- function(jaspRoot) {
 
-  jaspModules <- Filter(
+  jaspModules <- normalizePath(Filter(
     function(p) isJaspSourcePackage(p),
     list.dirs(file.path(jaspRoot, "Modules"), recursive = FALSE)
-  )
+  ), winslash = "/")
 
-  jaspPackages <- Filter(
+  jaspPackages <- normalizePath(Filter(
     function(p) isJaspSourcePackage(p),
     list.dirs(file.path(jaspRoot, "Engine"), recursive = FALSE)
-  )
+  ), winslash = "/")
 
   allPkgs <- c(jaspModules, jaspPackages)
   md5sums <- vapply(allPkgs, computeModuleHash, character(1L))

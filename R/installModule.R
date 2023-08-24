@@ -179,7 +179,7 @@ extractModuleDependenciesFromStatusObject <- function(pathToModule) {
 
   pathsToAdd <- moduleStatusObject[["dependencies"]][[basename(pathToModule)]]
 
-  if (!all(file.exists(pathsToAdd)))
+  if (is.null(pathsToAdd) || !all(file.exists(pathsToAdd)))
     warning(sprintf(
       "The module %s depends on other jasp modules (%s) but these do not exist locally in the Modules folder! Most likely these will be downloaded from GitHub.",
       basename(pathToModule),
