@@ -37,7 +37,7 @@ readMd5Sums <- function(modulePkg, moduleLibrary) {
 md5SumsChanged <- function(modulePkg, moduleLibrary) {
 
   file <- makeMd5SumsFilename(modulePkg, moduleLibrary)
-  if (!file.exists(file))
+  if (!file.exists(file) || !dir.exists(modulePkg))
     return(TRUE)
 
   oldMd5Sums <- readRDS(file)
