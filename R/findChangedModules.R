@@ -115,7 +115,7 @@ getJaspDependenciesFromDescription <- function(modulePath) {
   descriptionPath <- file.path(modulePath, "DESCRIPTION")
 
   if (!file.exists(descriptionPath)) {
-    warning(sprintf("Trying to find dependencies from DESCRIPTION at path '%s' but it does not exist!", descriptionPath))
+    warning(sprintf("Trying to find dependencies from DESCRIPTION at path '%s' but it does not exist! Double check if the module exists, perhaps you forgot to run `git submodule update --init`?", descriptionPath))
     return(NULL)
   }
 
