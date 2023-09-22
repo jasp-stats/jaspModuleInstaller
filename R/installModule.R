@@ -12,7 +12,7 @@ createLocalRecord <- function(modulePkg, moduleInfo, cacheAble = TRUE, addJaspTo
   record
 }
 
-createRecordsOfLocalJaspModules <- function(pathToModule) {
+createRecordsOfLocalJaspModules <- function(pathToModule, addOtherModulesWithPkgdepends = FALSE) {
 
   engineRoot <- normalizePath(file.path(pathToModule, "..", "..", "Engine"))
   modulePaths <- c(
@@ -35,8 +35,40 @@ createRecordsOfLocalJaspModules <- function(pathToModule) {
 
   }
 
+  if (addOtherModulesWithPkgdepends) {
+    otherRecords <- getRecordsFromPkgdepends(modulePaths)
+    records <- c(records, otherRecords)
+  }
+
   return(records)
 
+}
+
+getRecordsFromPkgdepends <- function(modulePaths, timeout = 60) {
+
+  rscript <- file.path(R.home("bin"), "Rscript")
+  path <- file.path(system.file(package = "jaspModuleInstaller"), "getModuleDependencies.R")
+
+  pkgdependsLibrary <- getOption("PKGDEPENDS_LIBRARY")
+
+  f <- tempfile()
+  args <- c(
+    "--verbose",
+    path,
+    pkgdependsLibrary,
+    getOption("repos"),
+    f,
+    paste0("local::", modulePaths)
+  )
+
+  result <- system2(command = rscript, args = args, timeout = timeout)
+
+  if (result != 0) {
+    warning("getRecordsFromPkgdepends failed!")
+    return(list())
+  } else {
+    return(readRDS(f))
+  }
 }
 
 updateLockFileWithLocalJaspModules <- function(lockfile, pathToModule) {
@@ -209,8 +241,12 @@ generateBasicLockfile <- function(lockfilePath, modulePkg, moduleLibrary) {
     # fallback, pray this works
     records <- renv::install(packages = modulePkg, library = moduleLibrary, project = modulePkg)
   } else {
-    recordsToInstall <- createRecordsOfLocalJaspModules(modulePkg)
-    records <- renv::install(packages = recordsToInstall, library = moduleLibrary, project = modulePkg)
+    recordsToInstall <- createRecordsOfLocalJaspModules(modulePkg, addOtherModulesWithPkgdepends = TRUE)
+    lockfile <- renv:::renv_lockfile_init(NULL)
+    renv::record(recordsToInstall, lockfile = lockfile)
+    renv::lockfile_write(lockfile, lockfilePath)
+    return()
+    # records <- renv::install(packages = recordsToInstall, library = moduleLibrary, project = modulePkg)
   }
 
   libs <- .libPaths()
