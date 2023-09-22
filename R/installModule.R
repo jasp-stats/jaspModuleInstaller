@@ -52,6 +52,10 @@ getRecordsFromPkgdepends <- function(modulePaths, timeout = 60) {
   pkgdependsLibrary <- getOption("PKGDEPENDS_LIBRARY")
 
   f <- tempfile()
+  on.exit({
+    if (file.exists(f))
+      file.remove(f)
+  })
   args <- c(
     "--verbose",
     path,
