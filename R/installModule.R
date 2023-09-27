@@ -247,7 +247,7 @@ generateBasicLockfile <- function(lockfilePath, modulePkg, moduleLibrary) {
   } else {
     recordsToInstall <- createRecordsOfLocalJaspModules(modulePkg, addOtherModulesWithPkgdepends = TRUE)
     lockfile <- renv:::renv_lockfile_init(NULL)
-    renv::record(recordsToInstall, lockfile = lockfile)
+    lockfile <- renv::record(recordsToInstall, lockfile = lockfile)
     renv::lockfile_write(lockfile, lockfilePath)
     return()
     # records <- renv::install(packages = recordsToInstall, library = moduleLibrary, project = modulePkg)
