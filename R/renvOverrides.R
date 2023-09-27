@@ -211,10 +211,14 @@ renv_hash_description_override <- function(path) {
   }
 }
 
-hackRenv <- function() {
+hackRenv <- function(onlyBootstrap_platform_prefix = FALSE) {
 
   # renv adds e.g,. "R-3.6/x86_64-pc-linux-gnu" to all paths (R-version/os) and we don't need that
   assignFunctionInRenv(function() return(""),                   "renv_bootstrap_platform_prefix")
+
+  # when installing Rcpp/ RInside we can stop here, when installing modules we need the overrides below as well
+  if (onlyBootstrap_platform_prefix)
+    return()
 
   assignFunctionInRenv(renv_remotes_resolve_path_impl_override, "renv_remotes_resolve_path_impl")
   assignFunctionInRenv(renv_description_read_override,          "renv_description_read")
@@ -279,11 +283,12 @@ addRenvBeforeAfterDispatch <- function() {
   return(unclass(x))
 }
 
-setupRenv <- function(moduleLibrary, modulePkg) {
+setupRenv <- function(moduleLibrary, modulePkg = NULL) {
 
   hackRenv()
 
   options(
+    "install.opts"                = "--no-multiarch --no-docs --no-test-load", # no test-load because on mac the paths need to be fixed
     "renv.config.install.verbose" = TRUE,  # not necessary but saves headaches
     "renv.config.cache.enabled"   = TRUE,  # enable using a cache
     "renv.cache.linkable"         = TRUE,  # undocumented, see renv:::renv_cache_linkable. required for linking to a custom folder
@@ -291,9 +296,11 @@ setupRenv <- function(moduleLibrary, modulePkg) {
     "renv.snapshot.ignore.self"   = FALSE  # currently unused, but can be useful.
   )
 
-  # renv_package_find crashes when package is base.
-  # for some terrible reason, people explicitly do base:: even though this isn't necessary.
-  renv::settings$ignored.packages(project = modulePkg, value = "base", persist = FALSE)
+  if (!is.null(modulePkg)) {
+    # renv_package_find crashes when package is base.
+    # for some terrible reason, people explicitly do base:: even though this isn't necessary.
+    renv::settings$ignored.packages(project = modulePkg, value = "base", persist = FALSE)
+  }
 
   cachePaths <- strsplit(Sys.getenv("RENV_PATHS_CACHE"), .Platform$path.sep)
 
@@ -306,8 +313,6 @@ setupRenv <- function(moduleLibrary, modulePkg) {
   cat("Using the following paths:\n")
   for (name in names(renv::paths))
     cat(sprintf("%s:%s%s\n", name, paste0(rep(" ", 12 - nchar(name)), collapse = ""), renv::paths[[name]]()))
-
-  options(install.opts = "--no-multiarch --no-docs --no-test-load"); #make sure we do not do a test-load, because this will not work on mac. the rpaths still need to be fixed
 
   # Try to nudge renv towards installing binaries when possible
   # NOTE: this needs to be reconsidered!
