@@ -50,8 +50,12 @@ recordsFromGithub <- setNames(lapply(fromGitHub, function(i) {
     Package        = dat$package[i],
     Version        = dat$version[i],
     Source         = "GitHub",
-    RemoteUsername = dat$remote[[i]]$username,
-    RemoteRepo     = dat$remote[[i]]$repo
+    RemoteType     = dat$metadata[[i]][["RemoteType"]],
+    RemoteHost     = dat$metadata[[i]][["RemoteHost"]],
+    RemoteUsername = dat$metadata[[i]][["RemoteUsername"]],
+    RemoteRepo     = dat$metadata[[i]][["RemoteRepo"]],
+    RemoteRef      = dat$metadata[[i]][["RemoteRef"]], # Not sure if this is needed. sha should suffice and RemoteRef is often HEAD.
+    RemoteSha      = dat$metadata[[i]][["RemoteSha"]]
   )
 }), dat$package[fromGitHub])
 
