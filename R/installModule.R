@@ -21,7 +21,7 @@ createRecordsOfLocalJaspModules <- function(pathToModule, addOtherModulesWithPkg
     pathToModule
   )
 
-  modulePaths  <- union(modulePaths, extractModuleDependenciesFromStatusObject(pathToModule))
+  modulePaths  <- union(normalizePath(modulePaths), normalizePath(extractModuleDependenciesFromStatusObject(pathToModule)))
   moduleHashes <- extractModuleHashesFromStatusObject(basename(modulePaths))
 
   records <- vector("list", length(modulePaths))
@@ -45,8 +45,7 @@ createRecordsOfLocalJaspModules <- function(pathToModule, addOtherModulesWithPkg
 }
 
 getRecordsFromPkgdepends <- function(modulePaths, timeout = 60) {
-
-  rscript <- file.path(R.home("bin"), "Rscript")
+  rscript <- file.path(R.home("bin"), "R")
   path <- file.path(system.file(package = "jaspModuleInstaller"), "getModuleDependencies.R")
 
   pkgdependsLibrary <- getOption("PKGDEPENDS_LIBRARY")
@@ -57,8 +56,10 @@ getRecordsFromPkgdepends <- function(modulePaths, timeout = 60) {
       file.remove(f)
   })
   args <- c(
+    "--slave",
     "--verbose",
-    path,
+    paste0("--file=", path),
+    "--args",
     pkgdependsLibrary,
     getOption("repos"),
     f,
