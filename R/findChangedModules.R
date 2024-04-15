@@ -6,14 +6,11 @@
 writeModuleStatusObject <- function(jaspRoot) {
 
   # TODO: validate jaspRoot
-
   moduleStatusObject     <- computeModuleStatusObject(jaspRoot)
   moduleStatusObjectPath <- getModuleStatusObjectPath()
-
   devcat(sprintf("writing module status to: %s\n", moduleStatusObjectPath))
 
   saveRDS(moduleStatusObject, file = moduleStatusObjectPath)
-
 }
 
 computeModuleStatusObject <- function(jaspRoot) {
@@ -73,7 +70,7 @@ getModuleStatusObjectPath <- function() {
 
   installedPath <- find.package(package = "jaspModuleInstaller", quiet = FALSE)
   moduleStatusObjectPath <- file.path(installedPath, "moduleStatusObject.rds")
-
+  moduleStatusObjectPath
 }
 
 getJaspDependencies <- function(jaspModules) {

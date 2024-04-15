@@ -67,7 +67,7 @@ isJaspSourcePackage <- function(path) {
   # dirnm2 <- basename(dirname(dirname(path)))
   !identical(nm, "jaspModuleInstaller") &&
     startsWith(prefix = "jasp", x = nm) &&
-    grepl("jasp-desktop/[Engine|Modules]", path)
+    grepl("(jasp-desktop|jasp)/[Engine|Modules]", path)
     # also works but a bit wonky
     # dirnm2 == "jasp-desktop"            &&
     # (dirnm1 == "Modules" || dirnm1 == "Engine")
@@ -256,10 +256,9 @@ addRenvBeforeAfterDispatch <- function() {
 
   renBeforeAfterInstallStruct <- structure(list(
     before.install = function(x) {
-      #print("BEFORE INSTALLING")
-      #print(sprintf("Path = %s", mget("path", envir = parent.frame(1),
-      #                                ifnotfound = "unknown path")))
-      0 #do nothing
+      if(Sys.getenv("RPKG_DOWNLOAD_ONLY") == "ON") {
+        rlang::return_from(frame = rlang::caller_env(n = 1), value = mget("path", envir = parent.frame(1), ifnotfound = "unknown"))
+      }
     },
 
     after.install = function(x) {
