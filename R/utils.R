@@ -68,15 +68,20 @@ hasRenvLockFile <- function(modulePkg) {
 validateCompilationAbilities <- function() {
   # renv uses the following output without checking for length but assuming it is 1.
   # if that isnt the case the (module) installation fails obscurely with an error like "Error in if (eval(cond, envir = environment(dot))) return(eval(expr, envir = environment(dot))): the condition has length > 1"
-  cmdConfigCC <- system2(c(renv:::R(), "CMD", "config", "CC"), stdout = TRUE, stderr = TRUE)
-  if (length(cmdConfigCC) > 1)
+  cmdConfigCC <- suppressWarnings(system2(c(renv:::R(),"CMD","config","CC"),stdout=TRUE,stderr=TRUE))
+  cmdConfigCC <- cmdConfigCC[!grepl("^WARNING:", cmdConfigCC)]
+  if(length(cmdConfigCC) > 1)
     stop(
       "R CMD config CC returns more than 1 line, this will break renv and thus your install.
-  Most likely you are on mac and you should run `xcode-select --install` in a terminal.
-  If that doesn't help or you aren't on a mac: feel free to open an issue at https://github.com/jasp-stats/jasp-issues/issues/new/choose
+      Most likely you are on mac and you should run `xcode-select --install` in a terminal.
 
-  The output was:
-  ", paste0(cmdConfigCC, collapse = "\n"), domain = NA)
+      If you are one windows and see something about 'sh' missing you might want to try installing RTools.
+      If you have that installed you can check whether you have (another) MingW earlier in your PATH environment variable.
+
+      If that doesn't help: feel free to open an issue at https://github.com/jasp-stats/jasp-issues/issues/new/choose
+
+      The output was:
+      ", paste0(cmdConfigCC, collapse="\n"), domain = NA)
 }
 
 getflag <- function(envVar, default) {
