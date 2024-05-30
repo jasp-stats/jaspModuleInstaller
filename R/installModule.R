@@ -138,7 +138,7 @@ installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force
     }
   })
 
-  return(invisible(TRUE))
+  return('succes!')
 }
 
 installJaspModuleImpl <- function(modulePkg, moduleLibrary, repos, onlyModPkg) {
