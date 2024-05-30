@@ -155,17 +155,13 @@ renv_lockfile_diff_record_override <- function(before, after) {
   before <- renv:::renv_record_normalize(before)
   after  <- renv:::renv_record_normalize(after)
 
-  # this is not 100% necessary, but I'm not sure if there is a better and easier way to determine
-  # whether a package is a JASP module (other than startsWith(x, "JASP"), which is a bit unsafe)
-  jaspPackages <- getOption("jaspModuleInstallerModuleStatusObject")[["jaspPackageNames"]]
-
   # first, compare on version / record existence
   type <- renv:::case(
     is.null(before) ~ "install",
     is.null(after)  ~ "remove",
     before$Version < after$Version ~ "upgrade",
     before$Version > after$Version ~ "downgrade",
-    before$Package %in% jaspPackages && before0$Hash != after0$Hash ~ "install (JASP: source code changed)"
+    startsWith(before$Package, "jasp") && !is.null(before0$Hash) && !is.null(after0$Hash) && before0$Hash != after0$Hash ~ "install (JASP: source code changed)"
   )
 
   if (!is.null(type))
@@ -186,7 +182,7 @@ renv_lockfile_diff_record_override <- function(before, after) {
 
 isPathInRenvCache <- function(path) {
   # TODO: normalizePath(path) is used to follow symlinks, needs to be verified across OSes
-  startsWith(x = normalizePath(path), prefix = normalizePath(renv::paths$cache()))
+  any(startsWith(x = normalizePath(path), prefix = normalizePath(renv::paths$cache())))
 }
 
 extractHashFromRenvCachePath <- function(path) {
@@ -195,7 +191,6 @@ extractHashFromRenvCachePath <- function(path) {
 }
 
 renv_hash_description_override <- function(path) {
-
   if (isJaspModule(path) && isPathInRenvCache(path)) {
 
     return(extractHashFromRenvCachePath(path))
