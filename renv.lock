@@ -12,9 +12,7 @@
     "renv": {
       "Package": "renv",
       "Version": "1.0.7",
-      "Source": "Local",
-      "RemoteType": "local",
-      "RemoteUrl": "/home/sp42/Downloads/renv-1.0.7"
+      "Source": "Repository"
     },
     "rlang": {
       "Package": "rlang",
