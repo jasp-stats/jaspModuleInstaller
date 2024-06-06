@@ -98,7 +98,9 @@ getInstallMode <- function() {
 
 #' @export
 installJaspModule <- function(modulePkg, moduleLibrary, repos, onlyModPkg, force = FALSE, frameworkLibrary = NULL) {
-
+  if (.Platform$OS.type == "windows") {
+    prepareRtoolsEnv()
+  }
   validateCompilationAbilities()
 
   isPkgArchive <- isModulePkgArchive(modulePkg)

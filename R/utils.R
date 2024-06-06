@@ -84,6 +84,15 @@ validateCompilationAbilities <- function() {
       ", paste0(cmdConfigCC, collapse="\n"), domain = NA)
 }
 
+prepareRtoolsEnv <- function() {
+  #Whoever sets this, I reject it
+  Sys.unsetenv("R_INSTALL_TAR")
+  Sys.unsetenv("R_INCLUDE_DIR")
+  Sys.unsetenv("R_DOC_DIR")
+  Sys.unsetenv("R_CUSTOM_TOOLS_SOFT")
+  Sys.unsetenv("R_CUSTOM_TOOLS_PATH")
+}
+
 getflag <- function(envVar, default) {
   identical(toupper(Sys.getenv(envVar, unset = default)), "TRUE")
 }
