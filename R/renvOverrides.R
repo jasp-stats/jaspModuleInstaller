@@ -283,7 +283,7 @@ setupRenv <- function(moduleLibrary, modulePkg = NULL) {
 
   options(
     "install.opts"                = "--no-multiarch --no-docs --no-test-load", # no test-load because on mac the paths need to be fixed
-    "renv.config.install.verbose" = TRUE,  # not necessary but saves headaches
+    "renv.config.install.verbose" = FALSE,  # turning this on seems to make jaspBase comps with warnings lead to failures
     "renv.config.cache.enabled"   = TRUE,  # enable using a cache
     "renv.cache.linkable"         = TRUE,  # undocumented, see renv:::renv_cache_linkable. required for linking to a custom folder
     "renv.config.auto.snapshot"   = FALSE, # new option, we don't want this
