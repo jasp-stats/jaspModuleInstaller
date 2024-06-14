@@ -247,16 +247,34 @@ postInstallFixes <- function(folderToFix) {
   }
 }
 
+runJaspInstallOverrides <- function(pkg, what = c("before", "after")) {
+  what <- match.arg(what)
+  jaspOverrides <- getOption("JASP_RENV_INSTALL_OPTIONS")
+  if (is.null(jaspOverrides))
+    return(NULL)
+  if (pkg %in% names(jaspOverrides) && !is.null(jaspOverrides[[pkg]][[what]]))
+    if (is.function(jaspOverrides[[pkg]][[what]]))
+        jaspOverrides[[pkg]][[what]]()
+    else
+        stop("options(\"JASP_RENV_INSTALL_OPTIONS\") should be list(pkgName1 = list(before = function() <>, after = function <>), pkgName2 = ...)!", domain = NA)
+}
+
 addRenvBeforeAfterDispatch <- function() {
 
   renBeforeAfterInstallStruct <- structure(list(
     before.install = function(x) {
+
+      runJaspInstallOverrides(x, "before")
+
       if(Sys.getenv("RPKG_DOWNLOAD_ONLY") == "ON") {
         rlang::return_from(frame = rlang::caller_env(n = 1), value = mget("path", envir = parent.frame(1), ifnotfound = "unknown"))
       }
     },
 
     after.install = function(x) {
+
+      runJaspInstallOverrides(x, "after")
+
       installPath <- mget("installpath", envir = parent.frame(1), ifnotfound = "unknown")
 
       if (installPath != "unknown") {
