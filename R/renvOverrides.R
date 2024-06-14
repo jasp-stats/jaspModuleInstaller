@@ -267,7 +267,7 @@ addRenvBeforeAfterDispatch <- function() {
       runJaspInstallOverrides(x, "before")
 
       if(Sys.getenv("RPKG_DOWNLOAD_ONLY") == "ON") {
-        rlang::return_from(frame = rlang::caller_env(n = 1), value = mget("path", envir = parent.frame(1), ifnotfound = "unknown"))
+        do.call(return, list(mget("path", envir = parent.frame(1), ifnotfound = "unknown")), envir = parent.frame())
       }
     },
 
