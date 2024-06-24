@@ -247,8 +247,8 @@ postInstallFixes <- function(folderToFix) {
   }
 }
 
-runJaspInstallOverrides <- function(pkg, what = c("before", "after")) {
-  what <- match.arg(what)
+runJaspInstallOverrides <- function(pkg, what = "after") {
+  what <- match.arg(what, c("before", "after"))
   jaspOverrides <- getOption("JASP_RENV_INSTALL_OPTIONS")
   if (is.null(jaspOverrides))
     return(NULL)
