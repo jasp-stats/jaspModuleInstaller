@@ -234,9 +234,41 @@ extractModuleHashesFromStatusObject <- function(moduleNames) {
 generateBasicLockfile <- function(lockfilePath, modulePkg) {
 
   warning("Creating a basic lockfile")
-  file.remove(lockfilePath)
+  if(file.exists(lockfilePath)) file.remove(lockfilePath)
   records <- getRecordsFromPkgdepends(modulePkg)
   lockfile <- renv:::renv_lockfile_init(NULL)
   lockfile <- renv::record(records, lockfile = lockfile)
   renv::lockfile_write(lockfile, lockfilePath)
+}
+
+
+updateLockfile <- function(modulePkg) {
+  lockfilePath <- getRenvLockFile(modulePkg)
+  if(!file.exists(lockfilePath)) { #make one if it doesnt exist yet
+    return(generateBasicLockfile(lockfilePath, modulePkg))
+  }
+
+  warning("Updating lockfile")
+
+  #get current records and extract the locked record
+  currentRecords = renv::lockfile_read(lockfilePath)
+  getLockedRecords <- function(pkg) {
+    !is.null(pkg$JASP_LOCK)
+  }
+  lockedRecords <- Filter(getLockedRecords, currentRecords$Packages)
+  lockedNames <- lapply(lockedRecords, function(x) { x$Package })
+
+  #gather new ones using pkgdepends magic and filter out those who conflict with locked ones
+  newRecords <- getRecordsFromPkgdepends(modulePkg)
+  noConflicts <- function(pkg) {
+    !(pkg$Package %in% lockedNames)
+  }
+  nonConflicting <- Filter(noConflicts, newRecords)
+  processedRecords <- c(lockedRecords, nonConflicting)
+
+  file.remove(lockfilePath)
+  lockfile <- renv:::renv_lockfile_init(NULL)
+  lockfile <- renv::record(processedRecords, lockfile = lockfile)
+  renv::lockfile_write(lockfile, lockfilePath)
+
 }
