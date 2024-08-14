@@ -31,7 +31,7 @@ options(repos = repos)
 tempPath    <- args[3]
 jaspModules <- args[4:length(args)]
 
-pd <- pkgdepends::pkg_deps$new(jaspModules)
+pd <- pkgdepends::new_pkg_installation_proposal(jaspModules, config = list(library=tempdir()))
 pd$solve()
 pd$draw()
 sol <- pd$get_solution()
@@ -40,10 +40,15 @@ dat <- sol$data
 # this could be expanded but we currently do not support other repos anyway...
 fromRepository <- which(dat$type == "standard")
 fromGitHub     <- which(dat$type == "github")
+fromInstalled  <- which(dat$type == "installed")
 
 recordsFromRepository <- setNames(lapply(fromRepository, function(i) {
   list(Package = dat$package[i], Version = dat$version[i], Source = "Repository")
 }), dat$package[fromRepository])
+
+recordsFromInstalled <- setNames(lapply(fromInstalled, function(i) {
+  list(Package = dat$package[i], Version = dat$version[i], Source = "Repository")
+}), dat$package[fromInstalled])
 
 recordsFromGithub <- setNames(lapply(fromGitHub, function(i) {
   list(
@@ -59,6 +64,6 @@ recordsFromGithub <- setNames(lapply(fromGitHub, function(i) {
   )
 }), dat$package[fromGitHub])
 
-combinedRecords <- c(recordsFromGithub, recordsFromRepository)
+combinedRecords <- c(recordsFromInstalled, recordsFromGithub, recordsFromRepository)
 
 saveRDS(combinedRecords, file = tempPath)
