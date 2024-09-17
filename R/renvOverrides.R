@@ -61,16 +61,15 @@ isJaspModule <- function(path) {
 }
 
 isJaspSourcePackage <- function(path) {
+
   path <- normalizePath(path, winslash = "/")
-  nm    <- basename(path)
-  # dirnm1 <- basename(dirname(path))
-  # dirnm2 <- basename(dirname(dirname(path)))
+
+  nm    <- basename(path)          # ".../jasp-desktop/Modules/jaspBla" -> "jaspBla"
+  dirnm <- basename(dirname(path)) # ".../jasp-desktop/Modules/jaspBla" -> "Modules"
+
   !identical(nm, "jaspModuleInstaller") &&
     startsWith(prefix = "jasp", x = nm) &&
-    grepl("(jasp-desktop|jasp)/[Engine|Modules]", path)
-    # also works but a bit wonky
-    # dirnm2 == "jasp-desktop"            &&
-    # (dirnm1 == "Modules" || dirnm1 == "Engine")
+    (dirnm == "Modules" || dirnm == "Engine")
 }
 
 addLocalJaspToVersion <- function(version) {
