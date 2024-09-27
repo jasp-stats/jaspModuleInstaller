@@ -6,7 +6,7 @@ createLocalRecord <- function(modulePkg, moduleInfo, cacheAble = TRUE, addJaspTo
     RemoteType = "local",
     RemoteUrl  = modulePkg,
     Cacheable  = cacheAble,
-    Hash       = hash
+    Hash       = unname(hash) # unname to remove the name attribute, otherwise the json becomes Hash: {<name> : <hash>} instead of Hash: <hash>
   ))
   names(record) <- moduleInfo[["Package"]]
   record

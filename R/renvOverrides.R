@@ -88,8 +88,14 @@ renv_remotes_resolve_path_impl_override <- function(path) {
     # cat(sprintf("renv_remotes_resolve_path_impl_override, path = %s\n", path))
     Cacheable <- TRUE
     Version <- addLocalJaspToVersion(desc$Version)
-    cat(sprintf("computing hash for jasp module at path %s\n", path))
-    Hash    <- computeModuleHash(path)
+    moduleObject <- loadModuleStatusObject(returnObject = TRUE, warnIfNotExists = FALSE)
+    if (is.null(moduleObject)) {
+      cat(sprintf("computing hash for jasp module at path %s\n", path))
+      Hash    <- computeModuleHash(path)
+    } else {
+      cat(sprintf("loading cached hash for jasp module at path %s\n", path))
+      Hash    <- moduleObject[["md5sums"]][basename(path)]
+    }
 
   } else {
     Cacheable <- FALSE
