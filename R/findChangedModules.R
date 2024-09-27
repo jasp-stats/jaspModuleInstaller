@@ -3,19 +3,20 @@
 #' @param jaspRoot the root of the jasp-desktop github repository
 #' @param oldObject optional, the old module status object of a previous run
 #' @param modulesBinaryPath the path to folder where the modules are installed
+#' @param jaspModulesToBeInstalled the modules that are to be installed (as specified by cmake)
 #'
 #' @export
-writeModuleStatusObject <- function(jaspRoot, oldObject = NULL, modulesBinaryPath = "") {
+writeModuleStatusObject <- function(jaspRoot, oldObject = NULL, modulesBinaryPath = "", jaspModulesToBeInstalled = character()) {
 
   validateJaspRoot(jaspRoot)
-  moduleStatusObject     <- computeModuleStatusObject(jaspRoot, oldObject, modulesBinaryPath)
+  moduleStatusObject     <- computeModuleStatusObject(jaspRoot, oldObject, modulesBinaryPath, jaspModulesToBeInstalled)
   moduleStatusObjectPath <- getModuleStatusObjectPath()
   devcat(sprintf("writing module status to: %s\n", moduleStatusObjectPath))
 
   saveRDS(moduleStatusObject, file = moduleStatusObjectPath)
 }
 
-computeModuleStatusObject <- function(jaspRoot, oldObject, modulesBinaryPath) {
+computeModuleStatusObject <- function(jaspRoot, oldObject, modulesBinaryPath, jaspModulesToBeInstalled) {
 
   devcat("creating module status object\n")
 
@@ -47,14 +48,14 @@ computeModuleStatusObject <- function(jaspRoot, oldObject, modulesBinaryPath) {
 
   # NOTE: would needs to know the module build directory, could speed up building
   # NOTE: currently assumes that the old object mirrors the build directory, could alternatively read this info from the build directory instead?
-  newObject[["needsReinstallation"]] <- findModulesThatNeedReinstallation(newObject, oldObject, modulesBinaryPath)
+  newObject[["needsReinstallation"]] <- findModulesThatNeedReinstallation(newObject, oldObject, modulesBinaryPath, jaspModulesToBeInstalled)
 
   # this object is not space efficient and uses a lot of strings, but hopefully nobody cares.
   return(newObject)
 
 }
 
-findModulesThatNeedReinstallation <- function(objNew, objOld, moduleBinaryPath) {
+findModulesThatNeedReinstallation <- function(objNew, objOld, moduleBinaryPath, jaspModulesToBeInstalled = character()) {
 
   needsReinstallation        <- logical(length(objNew[["md5sums"]]))
   names(needsReinstallation) <- names(objNew[["md5sums"]])
@@ -70,39 +71,46 @@ findModulesThatNeedReinstallation <- function(objNew, objOld, moduleBinaryPath) 
   needsReinstallation[newNames] <- FALSE
   needsReinstallation[commonNames] <- objNew[["md5sums"]][commonNames] != objOld[["md5sums"]][commonNames]
 
-  # these changed directly on disk
-  changedOnDisk <- pkg2reinstall <- names(which(needsReinstallation))
+  # these sources changed according to md5sums
+  sourcesChanged <- needsReinstallation
+  nmsSourcesChanged <- names(sourcesChanged[sourcesChanged])
 
-  if (length(changedOnDisk) == 0) {
+  # validate that at least there is a directory for the module, in case people manually deleted the module
+  didNotChange <- names(needsReinstallation[!needsReinstallation])
+  didNotChange2 <- if (length(jaspModulesToBeInstalled) == 0) {
+    # until jaspModulesToBeInstalled is actually passed from cmake
+    setdiff(didNotChange, c("jaspBase", "jaspGraphs"))
+  } else {
+    # intersect between packages in build folder and modules to be installed as specified in cmake
+    intersect(didNotChange, jaspModulesToBeInstalled)
+  }
+  existsInBuildFolder <- dir.exists(file.path(moduleBinaryPath, didNotChange2, didNotChange2))
+  names(existsInBuildFolder) <- didNotChange2
+  nmsDidNotExistInBuildFolder <- didNotChange2[!existsInBuildFolder]
+
+  if (!any(sourcesChanged) && all(existsInBuildFolder)) {
     cat(sprintf(paste0("None of the installed modules changed relative to the previous run.\n")))
     return(setNames(rep(TRUE, length(newNames)), newNames))
   }
 
-  # validate that at least there is a directory for the module
-  didNotChange <- names(changedOnDisk[!changedOnDisk])
-  didNotExistInBuildFolder <- names(which(!dir.exists(file.path(moduleBinaryPath, didNotChange))))
-
-  # these didn't changed but don't exist in the build folder
-  changedOnDisk[didNotExistInBuildFolder] <- TRUE
-
-  print("pkg2reinstall")
-  print(pkg2reinstall)
   # could also store reverse dependencies in the object directly, instead of computing them on the fly
-  for (pkg in pkg2reinstall) {
+  for (pkg in nmsSourcesChanged) {
     revDeps <- vapply(objNew[["dependencies"]], function(x) pkg %in% names(x), logical(1L))
-    matches <- names(revDeps[revDeps])
+    matches <- intersect(names(revDeps[revDeps]), jaspModulesToBeInstalled)
     needsReinstallation[matches] <- TRUE
   }
 
-  needsReinstallAsDependency <- setdiff(names(needsReinstallation), changedOnDisk)
+  needsReinstallAsDependency <- needsReinstallation & !sourcesChanged
+  nmsNeedsReinstallAsDependency <- names(needsReinstallAsDependency[needsReinstallAsDependency])
+
 
   cat(sprintf(paste0(
-      "The following modules changed relative to the previous run:\n\n%s.\n\n",
-      "The following modules depend on some of the modules listed above and also need to be reinstalled:\n\n%s.\n",
-      "The following modules were missing from the build folder and will be reinstalled:\n\n%s.\n"
-    ), paste(changedOnDisk, collapse = ", "),
-       paste(needsReinstallAsDependency, collapse = ", "),
-       paste(didNotExistInBuildFolder, collapse = ", ")))
+      "The following %d modules had source code changes relative to the previous run:\n\n%s\n\n",
+      "The following %d modules depend on some of the modules listed above and also need to be reinstalled:\n\n%s\n\n",
+      "The following %d modules were missing from the build folder and may need to be reinstalled:\n\n%s\n\n"
+    ), length(nmsSourcesChanged), paste(nmsSourcesChanged, collapse = ", "),
+       length(nmsNeedsReinstallAsDependency), paste(nmsNeedsReinstallAsDependency, collapse = ", "),
+       length(nmsDidNotExistInBuildFolder), paste(nmsDidNotExistInBuildFolder, collapse = ", ")))
 
   return(needsReinstallation)
 }
@@ -139,10 +147,10 @@ loadModuleStatusObject <- function(returnObject = FALSE, warnIfNotExists = FALSE
   if (file.exists(moduleStatusObjectPath)) {
 
     moduleStatusObject <- readRDS(file = moduleStatusObjectPath)
+    options("jaspModuleInstallerModuleStatusObject" = moduleStatusObject)
+
     if (returnObject)
       return(moduleStatusObject)
-
-    options("jaspModuleInstallerModuleStatusObject" = moduleStatusObject)
 
   } else if (warnIfNotExists) {
 
