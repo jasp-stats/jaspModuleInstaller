@@ -336,6 +336,9 @@ setupRenv <- function(moduleLibrary, modulePkg = NULL) {
   if (getOS() == "windows" || getOS() == "osx")
     options(install.packages.compile.from.source = "never")
 
+  if (getOS() == "osx")
+    options(renv.config.install.staged = FALSE, renv.config.install.transactional = FALSE)
+
   addRenvBeforeAfterDispatch()
 
   # renv::install("Matrix", type="source")
