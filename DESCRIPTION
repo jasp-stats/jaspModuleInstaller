@@ -1,7 +1,7 @@
 Package: jaspModuleInstaller
 Type: Package
 Title: Helper Package for Installing JASP Modules
-Version: 0.1.0
+Version: 0.19.2
 Author: JASP Team
 Maintainer: Don van den Bergh <d.vandenbergh@jasp-stats.org>
 Description: More about what it does (maybe more than one line)
