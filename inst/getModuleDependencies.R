@@ -43,18 +43,22 @@ fromGitHub     <- which(dat$type == "github")
 fromInstalled  <- which(dat$type == "installed")
 
 recordsFromRepository <- setNames(lapply(fromRepository, function(i) {
-  list(Package = dat$package[i], Version = dat$version[i], Source = "Repository")
+  required <- dat$deps[[i]]$type != "enhances" & dat$deps[[i]]$type != "suggests"
+  list(Package = dat$package[i], Version = dat$version[i], Source = "Repository", Requirements = unique(dat$deps[[i]]$package[required]))
 }), dat$package[fromRepository])
 
 recordsFromInstalled <- setNames(lapply(fromInstalled, function(i) {
-  list(Package = dat$package[i], Version = dat$version[i], Source = "Repository")
+  required <- dat$deps[[i]]$type != "enhances" & dat$deps[[i]]$type != "suggests"
+  list(Package = dat$package[i], Version = dat$version[i], Source = "Repository", Requirements = unique(dat$deps[[i]]$package[required]))
 }), dat$package[fromInstalled])
 
 recordsFromGithub <- setNames(lapply(fromGitHub, function(i) {
+  required <- dat$deps[[i]]$type != "enhances" & dat$deps[[i]]$type != "suggests"
   list(
     Package        = dat$package[i],
     Version        = dat$version[i],
     Source         = "GitHub",
+    Requirements   = unique(dat$deps[[i]]$package[required]),
     RemoteType     = dat$metadata[[i]][["RemoteType"]],
     RemoteHost     = dat$metadata[[i]][["RemoteHost"]],
     RemoteUsername = dat$metadata[[i]][["RemoteUsername"]],
