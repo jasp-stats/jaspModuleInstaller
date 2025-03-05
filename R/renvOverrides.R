@@ -306,10 +306,11 @@ setupRenv <- function(moduleLibrary, modulePkg = NULL) {
 
   options(
     "install.opts"                = "--no-multiarch --no-docs --no-test-load", # no test-load because on mac the paths need to be fixed
-    "renv.config.install.verbose" = FALSE,  # turning this on seems to make jaspBase comps with warnings lead to failures
+    "renv.config.install.verbose" = TRUE,  # turning this on seems to make jaspBase comps with warnings lead to failures. # Alright, that might be true but without that output I cannot figure out why package compilation keeps failing...
     "renv.config.cache.enabled"   = TRUE,  # enable using a cache
     "renv.cache.linkable"         = TRUE,  # undocumented, see renv:::renv_cache_linkable. required for linking to a custom folder
     "renv.config.auto.snapshot"   = FALSE, # new option, we don't want this
+    "renv.config.sysreqs.check"   = FALSE, # Thanks for thinking of arch and enabling this by default renv-peepz... 
     "renv.snapshot.ignore.self"   = FALSE  # currently unused, but can be useful.
   )
 
